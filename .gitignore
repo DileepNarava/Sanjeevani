@@ -21,6 +21,9 @@ files2/
 .env.local
 .env.*
 
+# Keep the template file
+!.env.example
+
 # OS files
 .DS_Store
 Thumbs.db
