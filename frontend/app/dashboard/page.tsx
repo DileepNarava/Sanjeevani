@@ -1,170 +1,173 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useAuth } from "@/context/AuthContext";
-import { getMyRequests } from "@/lib/requests";
-import type { BloodRequest } from "@/types/auth";
+import { searchDonors } from "@/lib/donors";
+import Alert from "@/components/Alert";
+import type { BloodGroup, Donor } from "@/types/auth";
 
-const BLOOD_GROUP_LABELS: Record<string, string> = {
-  O_POS: "O+",
-  O_NEG: "O-",
-  A_POS: "A+",
-  A_NEG: "A-",
-  B_POS: "B+",
-  B_NEG: "B-",
-  AB_POS: "AB+",
-  AB_NEG: "AB-",
-};
+const BLOOD_GROUPS: { value: BloodGroup; label: string }[] = [
+  { value: "O_POS", label: "O+" },
+  { value: "O_NEG", label: "O-" },
+  { value: "A_POS", label: "A+" },
+  { value: "A_NEG", label: "A-" },
+  { value: "B_POS", label: "B+" },
+  { value: "B_NEG", label: "B-" },
+  { value: "AB_POS", label: "AB+" },
+  { value: "AB_NEG", label: "AB-" },
+];
 
-const PREVIEW_COUNT = 3;
+const BLOOD_GROUP_LABELS: Record<string, string> = Object.fromEntries(
+  BLOOD_GROUPS.map((bg) => [bg.value, bg.label])
+);
 
-function DashboardContent() {
-  const { user } = useAuth();
-  const [myRequests, setMyRequests] = useState<BloodRequest[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(true);
+function DonorSearch() {
+  const [bloodGroup, setBloodGroup] = useState<BloodGroup | "">("");
+  const [city, setCity] = useState("");
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchMyRequests = useCallback(async () => {
-    setLoadingRequests(true);
-    setError("");
-    try {
-      const res = await getMyRequests();
-      setMyRequests(res.requests);
-    } catch {
-      setError("Failed to load your requests.");
-    } finally {
-      setLoadingRequests(false);
-    }
-  }, []);
+  const runSearch = useCallback(
+    async (filters: { bloodGroup?: BloodGroup; city?: string }) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await searchDonors(filters);
+        setDonors(res.donors);
+      } catch {
+        setError("Failed to search donors.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
+  // Show all donors (up to the backend's cap) on first load, before any
+  // filter is applied.
   useEffect(() => {
-    async function loadMyRequests() {
-      await fetchMyRequests();
+    async function loadInitial() {
+      await runSearch({});
     }
 
-    loadMyRequests();
-  }, [fetchMyRequests]);
+    loadInitial();
+  }, [runSearch]);
 
-  if (!user) return null;
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await runSearch({
+      bloodGroup: bloodGroup || undefined,
+      city: city.trim() || undefined,
+    });
+  }
 
-  const preview = myRequests.slice(0, PREVIEW_COUNT);
+  function handleClear() {
+    setBloodGroup("");
+    setCity("");
+    runSearch({});
+  }
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-16">
+    <div className="mx-auto w-full max-w-3xl px-4 py-16">
       <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-        Welcome, {user.name}
+        Find donors
       </h1>
+      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        Search registered donors by blood group and city.
+      </p>
 
-      {/* Primary actions */}
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Link
-          href="/requests/new"
-          className="rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-6 transition-colors hover:bg-brand-primary/10"
-        >
-          <p className="text-lg font-semibold text-brand-primary">
-            Need blood?
-          </p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Create a blood request
-          </p>
-        </Link>
-
-        <Link
-          href="/requests"
-          className="rounded-2xl border border-zinc-200 bg-white p-6 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-        >
-          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Want to donate?
-          </p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Browse blood requests
-          </p>
-        </Link>
-      </div>
-
-      {/* My Requests preview */}
-      <div className="mt-10">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            My requests
-          </h2>
-          <Link
-            href="/requests"
-            className="text-sm font-medium text-brand-primary hover:opacity-80"
+      <form
+        onSubmit={handleSubmit}
+        className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]"
+      >
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Blood group
+          </label>
+          <select
+            value={bloodGroup}
+            onChange={(e) => setBloodGroup(e.target.value as BloodGroup | "")}
+            className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-brand-primary dark:border-zinc-700"
           >
-            View all →
-          </Link>
+            <option value="">Any</option>
+            {BLOOD_GROUPS.map((bg) => (
+              <option key={bg.value} value={bg.value}>
+                {bg.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="mt-3 space-y-2">
-          {loadingRequests ? (
-            <p className="text-sm text-zinc-500">Loading…</p>
-          ) : error ? (
-            <p className="text-sm text-brand-primary">{error}</p>
-          ) : preview.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              You haven&apos;t created any requests yet.
-            </p>
-          ) : (
-            preview.map((request) => (
-              <div
-                key={request.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                    {request.patientName}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {request.hospital}, {request.city}
-                  </p>
-                </div>
-                <span className="rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary">
-                  {BLOOD_GROUP_LABELS[request.bloodGroup] ?? request.bloodGroup}
-                </span>
-              </div>
-            ))
+        <div>
+          <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            City
+          </label>
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="e.g. Vijayawada"
+            className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-brand-primary dark:border-zinc-700"
+          />
+        </div>
+
+        <div className="flex items-end gap-2">
+          <button
+            type="submit"
+            className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Search
+          </button>
+          {(bloodGroup || city) && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Clear
+            </button>
           )}
         </div>
-      </div>
+      </form>
 
-      {/* Profile — secondary */}
-      <div className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Profile information
-        </h2>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <InfoRow label="Name" value={user.name} />
-          <InfoRow
-            label="Blood group"
-            value={BLOOD_GROUP_LABELS[user.bloodGroup] ?? user.bloodGroup}
-          />
-          <InfoRow label="Phone" value={user.phone} />
-          <InfoRow label="City" value={user.city} />
-          <InfoRow label="Email" value={user.email} />
-        </div>
+      {error && <Alert type="error" message={error} />}
+
+      <div className="mt-6 space-y-2">
+        {loading ? (
+          <p className="text-sm text-zinc-500">Searching…</p>
+        ) : donors.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No donors found matching these filters.
+          </p>
+        ) : (
+          donors.map((donor) => (
+            <div
+              key={donor.id}
+              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              <div>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  {donor.name}
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {donor.city}
+                </p>
+              </div>
+              <span className="rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary">
+                {BLOOD_GROUP_LABELS[donor.bloodGroup] ?? donor.bloodGroup}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-export default function DashboardPage() {
+export default function DonorsPage() {
   return (
     <ProtectedRoute>
-      <DashboardContent />
+      <DonorSearch />
     </ProtectedRoute>
   );
 }
