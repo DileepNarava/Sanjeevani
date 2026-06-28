@@ -1,0 +1,29 @@
+# Temporary Claude files
+files.zip
+files2.zip
+files2/
+
+# Node modules
+**/node_modules/
+
+# Next.js
+**/.next/
+
+# Build output
+**/dist/
+**/build/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
