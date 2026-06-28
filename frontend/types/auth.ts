@@ -42,6 +42,7 @@ export interface CurrentUserResponse {
   success: boolean;
   user: User;
 }
+
 // --- Blood Request types (Phase 2) ---
 
 export interface BloodRequest {
@@ -83,4 +84,23 @@ export interface GetRequestsResponse {
 export interface DeleteRequestResponse {
   success: boolean;
   message: string;
+}
+
+// --- Donor Search types (Phase 3) ---
+
+export interface Donor {
+  id: string;
+  name: string;
+  bloodGroup: BloodGroup;
+  city: string;
+}
+
+export interface SearchDonorsParams {
+  bloodGroup?: BloodGroup;
+  city?: string;
+}
+
+export interface SearchDonorsResponse {
+  success: boolean;
+  donors: Donor[];
 }

@@ -4,6 +4,7 @@ import "dotenv/config";
 
 import authRoutes from "./routes/auth.routes.js";
 import requestRoutes from "./routes/request.routes.js";
+import donorRoutes from "./routes/donor.routes.js";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
+app.use("/api/donors", donorRoutes);
 
 const PORT = 5000;
 

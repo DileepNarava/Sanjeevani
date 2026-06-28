@@ -48,6 +48,7 @@ export default function Navbar() {
           <div className="flex items-center gap-6">
             <NavLink href="/dashboard">Dashboard</NavLink>
             <NavLink href="/requests">Requests</NavLink>
+            <NavLink href="/donors">Donors</NavLink>
             <span className="hidden text-sm text-zinc-500 dark:text-zinc-400 sm:inline">
               {user.name}
             </span>
