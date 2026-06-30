@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +11,7 @@ import {
   markRequestFulfilled,
 } from "@/lib/requests";
 import Alert from "@/components/Alert";
-import type { BloodRequest } from "@/types/auth";
+import type { BloodGroup, BloodRequest, RequestStatus } from "@/types/auth";
 
 const BLOOD_GROUP_LABELS: Record<string, string> = {
   O_POS: "O+",
@@ -23,6 +23,17 @@ const BLOOD_GROUP_LABELS: Record<string, string> = {
   AB_POS: "AB+",
   AB_NEG: "AB-",
 };
+
+const BLOOD_GROUPS: { value: BloodGroup; label: string }[] = [
+  { value: "O_POS", label: "O+" },
+  { value: "O_NEG", label: "O-" },
+  { value: "A_POS", label: "A+" },
+  { value: "A_NEG", label: "A-" },
+  { value: "B_POS", label: "B+" },
+  { value: "B_NEG", label: "B-" },
+  { value: "AB_POS", label: "AB+" },
+  { value: "AB_NEG", label: "AB-" },
+];
 
 type Tab = "all" | "mine";
 
@@ -38,27 +49,68 @@ function RequestsList() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [fulfillingId, setFulfillingId] = useState<string | null>(null);
 
-  const fetchRequests = useCallback(async (activeTab: Tab) => {
-    setLoading(true);
-    setError("");
-    try {
-      const res =
-        activeTab === "all" ? await getAllRequests() : await getMyRequests();
-      setRequests(res.requests);
-    } catch {
-      setError("Failed to load requests.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Filters only apply to the "All requests" tab (GET /api/requests),
+  // not "My requests" (GET /api/requests/my), matching the backend.
+  const [filterBloodGroup, setFilterBloodGroup] = useState<BloodGroup | "">(
+    ""
+  );
+  const [filterCity, setFilterCity] = useState("");
+  const [filterStatus, setFilterStatus] = useState<RequestStatus | "">("");
 
+  const fetchRequests = useCallback(
+    async (
+      activeTab: Tab,
+      filters: { bloodGroup?: BloodGroup; city?: string; status?: RequestStatus }
+    ) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res =
+          activeTab === "all"
+            ? await getAllRequests(filters)
+            : await getMyRequests();
+        setRequests(res.requests);
+      } catch {
+        setError("Failed to load requests.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // Re-fetch whenever the tab changes. Filters are applied explicitly via
+  // the Search button (handleFilterSubmit) rather than on every keystroke,
+  // so switching tabs reloads using whatever filters are currently set.
   useEffect(() => {
     async function loadRequests() {
-      await fetchRequests(tab);
+      await fetchRequests(tab, {
+        bloodGroup: filterBloodGroup || undefined,
+        city: filterCity.trim() || undefined,
+        status: filterStatus || undefined,
+      });
     }
 
     loadRequests();
+    // Only re-run on tab change here; filter submission triggers its own fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, fetchRequests]);
+
+  async function handleFilterSubmit(e: FormEvent) {
+    e.preventDefault();
+    await fetchRequests(tab, {
+      bloodGroup: filterBloodGroup || undefined,
+      city: filterCity.trim() || undefined,
+      status: filterStatus || undefined,
+    });
+  }
+
+  async function handleClearFilters() {
+    setFilterBloodGroup("");
+    setFilterCity("");
+    setFilterStatus("");
+    await fetchRequests(tab, {});
+  }
 
   async function handleDelete(id: string) {
     setDeletingId(id);
@@ -92,6 +144,8 @@ function RequestsList() {
     }
   }
 
+  const hasActiveFilters = filterBloodGroup || filterCity || filterStatus;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-16">
       <div className="flex items-center justify-between">
@@ -115,6 +169,80 @@ function RequestsList() {
         </TabButton>
       </div>
 
+      {tab === "all" && (
+        <form
+          onSubmit={handleFilterSubmit}
+          className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+        >
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Blood group
+            </label>
+            <select
+              value={filterBloodGroup}
+              onChange={(e) =>
+                setFilterBloodGroup(e.target.value as BloodGroup | "")
+              }
+              className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-brand-primary dark:border-zinc-700"
+            >
+              <option value="">Any</option>
+              {BLOOD_GROUPS.map((bg) => (
+                <option key={bg.value} value={bg.value}>
+                  {bg.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              City
+            </label>
+            <input
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
+              placeholder="e.g. Vijayawada"
+              className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-brand-primary dark:border-zinc-700"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) =>
+                setFilterStatus(e.target.value as RequestStatus | "")
+              }
+              className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-brand-primary dark:border-zinc-700"
+            >
+              <option value="">Any</option>
+              <option value="PENDING">Pending</option>
+              <option value="FULFILLED">Fulfilled</option>
+            </select>
+          </div>
+
+          <div className="flex items-end gap-2">
+            <button
+              type="submit"
+              className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Search
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}
 
@@ -123,7 +251,11 @@ function RequestsList() {
           <p className="text-sm text-zinc-500">Loading requests…</p>
         ) : requests.length === 0 ? (
           <p className="text-sm text-zinc-500">
-            {tab === "all" ? "No requests yet." : "You haven't created any requests yet."}
+            {tab === "all"
+              ? hasActiveFilters
+                ? "No requests match these filters."
+                : "No requests yet."
+              : "You haven't created any requests yet."}
           </p>
         ) : (
           requests.map((request) => (

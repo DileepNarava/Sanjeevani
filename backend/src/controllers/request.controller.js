@@ -44,7 +44,27 @@ export const createRequest = async (req, res) => {
 
 export const getAllRequests = async (req, res) => {
   try {
+    const { bloodGroup, city, status } = req.query;
+
+    const where = {};
+
+    if (bloodGroup) {
+      where.bloodGroup = bloodGroup;
+    }
+
+    if (city) {
+      where.city = {
+        equals: city,
+        mode: "insensitive",
+      };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
     const requests = await prisma.bloodRequest.findMany({
+      where,
       include: {
         user: {
           select: {

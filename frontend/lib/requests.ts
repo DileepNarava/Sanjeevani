@@ -5,6 +5,7 @@ import type {
   GetRequestsResponse,
   DeleteRequestResponse,
   MarkRequestFulfilledResponse,
+  SearchRequestsParams,
 } from "@/types/auth";
 
 export async function createRequest(
@@ -14,8 +15,12 @@ export async function createRequest(
   return res.data;
 }
 
-export async function getAllRequests(): Promise<GetRequestsResponse> {
-  const res = await api.get<GetRequestsResponse>("/requests");
+export async function getAllRequests(
+  filters: SearchRequestsParams = {}
+): Promise<GetRequestsResponse> {
+  const res = await api.get<GetRequestsResponse>("/requests", {
+    params: filters,
+  });
   return res.data;
 }
 

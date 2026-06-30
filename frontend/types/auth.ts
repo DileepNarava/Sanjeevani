@@ -94,6 +94,12 @@ export interface MarkRequestFulfilledResponse {
   request: BloodRequest;
 }
 
+export interface SearchRequestsParams {
+  bloodGroup?: BloodGroup;
+  city?: string;
+  status?: RequestStatus;
+}
+
 // --- Donor Search types (Phase 3) ---
 
 export interface Donor {
