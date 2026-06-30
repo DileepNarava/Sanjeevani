@@ -2,7 +2,6 @@ import prisma from "../db.js";
 
 export const createRequest = async (req, res) => {
   try {
-
     if (!req.body) {
       return res.status(400).json({
         success: false,
@@ -33,7 +32,6 @@ export const createRequest = async (req, res) => {
       success: true,
       request,
     });
-
   } catch (error) {
     console.log(error);
 
@@ -43,6 +41,7 @@ export const createRequest = async (req, res) => {
     });
   }
 };
+
 export const getAllRequests = async (req, res) => {
   try {
     const requests = await prisma.bloodRequest.findMany({
@@ -95,9 +94,68 @@ export const getMyRequests = async (req, res) => {
   }
 };
 
+export const markRequestFulfilled = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.bloodRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    if (existing.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this request",
+      });
+    }
+
+    const request = await prisma.bloodRequest.update({
+      where: { id },
+      data: { status: "FULFILLED" },
+    });
+
+    res.status(200).json({
+      success: true,
+      request,
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
 export const deleteRequest = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existing = await prisma.bloodRequest.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    if (existing.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this request",
+      });
+    }
 
     await prisma.bloodRequest.delete({
       where: {

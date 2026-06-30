@@ -45,6 +45,8 @@ export interface CurrentUserResponse {
 
 // --- Blood Request types (Phase 2) ---
 
+export type RequestStatus = "PENDING" | "FULFILLED";
+
 export interface BloodRequest {
   id: string;
   patientName: string;
@@ -53,6 +55,7 @@ export interface BloodRequest {
   city: string;
   unitsRequired: number;
   userId: string;
+  status: RequestStatus;
   createdAt: string;
   user?: {
     id: string;
@@ -84,6 +87,11 @@ export interface GetRequestsResponse {
 export interface DeleteRequestResponse {
   success: boolean;
   message: string;
+}
+
+export interface MarkRequestFulfilledResponse {
+  success: boolean;
+  request: BloodRequest;
 }
 
 // --- Donor Search types (Phase 3) ---

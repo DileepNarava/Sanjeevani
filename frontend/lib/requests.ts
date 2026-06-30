@@ -4,6 +4,7 @@ import type {
   CreateRequestResponse,
   GetRequestsResponse,
   DeleteRequestResponse,
+  MarkRequestFulfilledResponse,
 } from "@/types/auth";
 
 export async function createRequest(
@@ -27,5 +28,14 @@ export async function deleteRequest(
   id: string
 ): Promise<DeleteRequestResponse> {
   const res = await api.delete<DeleteRequestResponse>(`/requests/${id}`);
+  return res.data;
+}
+
+export async function markRequestFulfilled(
+  id: string
+): Promise<MarkRequestFulfilledResponse> {
+  const res = await api.patch<MarkRequestFulfilledResponse>(
+    `/requests/${id}/status`
+  );
   return res.data;
 }

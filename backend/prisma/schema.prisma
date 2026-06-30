@@ -28,6 +28,7 @@ model BloodRequest {
   userId        String
   createdAt     DateTime   @default(now())
   user          User       @relation(fields: [userId], references: [id])
+  status RequestStatus @default(PENDING)  
 }
 
 enum BloodGroup {
@@ -39,4 +40,8 @@ enum BloodGroup {
   AB_NEG
   O_POS
   O_NEG
+}
+enum RequestStatus {
+  PENDING
+  FULFILLED
 }
